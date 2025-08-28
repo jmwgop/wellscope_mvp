@@ -1,0 +1,40 @@
+cat > .gitignore << 'EOF'
+# OS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.venv/
+venv/
+ENV/
+.env
+*.egg-info/
+*.dist-info/
+build/
+dist/
+.eggs/
+
+# Tools
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+.coverage
+coverage.xml
+htmlcov/
+
+# Project
+outputs/
+data/
+*.pkl
+*.parquet
+*.feather
+
+# Large CSVs by default, but keep test fixtures/templates
+*.CSV
+!tests/fixtures/*.CSV
+!templates/*.csv
+EOF
