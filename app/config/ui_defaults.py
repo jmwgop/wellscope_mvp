@@ -18,6 +18,11 @@ class UIDefaults:
     dbscan_eps: float = 0.5
     use_hdbscan: bool = True  # Superior for production curve clustering
     
+    # Production clustering optimization defaults (experimental findings)
+    production_similarity_threshold: float = 0.75  # 75%+ similarity indicates production data
+    high_similarity_threshold: float = 0.85        # 85%+ similarity needs aggressive clustering
+    very_high_similarity_threshold: float = 0.90   # 90%+ similarity needs ultra-aggressive clustering
+    
     # Data-aware clustering defaults
     default_group_size_preference: str = "medium"  # "small", "medium", "large"
     default_clustering_sensitivity: str = "balanced"  # "loose", "balanced", "strict"
@@ -48,6 +53,11 @@ class UIDefaults:
     similarity_threshold: float = 0.7
     max_file_size_mb: int = 100
     default_page_size: int = 20
+    
+    # Production optimization UI messages
+    production_optimization_enabled_msg: str = "🛢️ Production data optimization enabled - using specialized parameters for oil & gas decline curves"
+    high_similarity_detected_msg: str = "High similarity detected ({:.1%}) - using aggressive clustering optimized for similar production patterns"
+    production_clusters_expected_msg: str = "Expecting ~{} distinct production behavior groups based on your data characteristics"
     
     def __post_init__(self):
         if self.default_formations is None:

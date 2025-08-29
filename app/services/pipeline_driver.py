@@ -16,15 +16,18 @@ def run_complete_pipeline(
     headers_df: pd.DataFrame,
     monthly_df: pd.DataFrame,
     filters_cfg: Dict[str, Any] = None,
-    use_mature_first: bool = True
+    use_mature_first: bool = True,
+    use_production_optimization: bool = True
 ) -> Dict[str, Any]:
     """
-    Run the complete ML pipeline from raw data to similarity scores.
+    Run the complete ML pipeline from raw data to similarity scores with production optimization.
     
     Args:
         headers_df: Well headers DataFrame
         monthly_df: Monthly production DataFrame  
         filters_cfg: Optional filter configuration (uses defaults if None)
+        use_mature_first: Whether to use mature-first clustering
+        use_production_optimization: Whether to enable production data optimization
         
     Returns:
         Dictionary containing all pipeline artifacts:
@@ -80,7 +83,7 @@ def run_complete_pipeline(
                 filtered_df, vector_config, cluster_config
             )
         else:
-            labels_df, cluster_meta = run_clustering(vectors_df, cluster_config)
+            labels_df, cluster_meta = run_clustering(vectors_df, cluster_config, use_production_optimization)
         
         # Step 5: Generate 2D projection
         # For mature-first clustering, we need to use the appropriate vectors
@@ -134,10 +137,11 @@ def run_configurable_pipeline(
     cluster_cfg: ClusterConfig = None,
     projection_cfg: ProjectionConfig = None,
     similarity_cfg: SimilarityConfig = None,
-    use_mature_first: bool = True
+    use_mature_first: bool = True,
+    use_production_optimization: bool = True
 ) -> Dict[str, Any]:
     """
-    Run the ML pipeline with custom configurations.
+    Run the ML pipeline with custom configurations and production optimization.
     
     Args:
         headers_df: Well headers DataFrame
@@ -147,6 +151,8 @@ def run_configurable_pipeline(
         cluster_cfg: Clustering configuration
         projection_cfg: Projection configuration
         similarity_cfg: Similarity scoring configuration
+        use_mature_first: Whether to use mature-first clustering
+        use_production_optimization: Whether to enable production data optimization
         
     Returns:
         Dictionary containing all pipeline artifacts (same as run_complete_pipeline)
@@ -191,13 +197,13 @@ def run_configurable_pipeline(
         if len(vectors_df) == 0:
             raise ValueError("Vector generation failed")
         
-        # Step 4: Run clustering with custom config (mature-first or standard)
+        # Step 4: Run clustering with custom config (mature-first or standard) + production optimization
         if use_mature_first:
             labels_df, cluster_meta = run_mature_first_clustering(
                 filtered_df, vector_cfg, cluster_cfg
             )
         else:
-            labels_df, cluster_meta = run_clustering(vectors_df, cluster_cfg)
+            labels_df, cluster_meta = run_clustering(vectors_df, cluster_cfg, use_production_optimization)
         
         # Step 5: Generate 2D projection with custom config
         coords_df, projection_meta = project_vectors(vectors_df, projection_cfg)

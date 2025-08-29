@@ -7,6 +7,17 @@ import pandas as pd
 from wellscope_mvp.pipeline.cluster_runner import ClusterConfig
 from wellscope_mvp.pipeline.filter_inputs import compute_months_produced
 
+# Import production clustering optimization
+try:
+    from wellscope_mvp.pipeline.production_clustering import (
+        detect_production_data,
+        get_production_optimized_config,
+        get_production_clustering_recommendation
+    )
+    PRODUCTION_OPTIMIZATION_AVAILABLE = True
+except ImportError:
+    PRODUCTION_OPTIMIZATION_AVAILABLE = False
+
 
 def calculate_data_characteristics(filtered_df: pd.DataFrame) -> Dict[str, Any]:
     """
@@ -64,11 +75,79 @@ def calculate_data_characteristics(filtered_df: pd.DataFrame) -> Dict[str, Any]:
     }
 
 
+def get_production_aware_clustering_params(
+    vectors_df: Optional[pd.DataFrame] = None,
+    data_chars: Optional[Dict[str, Any]] = None,
+    expected_clusters: Optional[int] = None,
+    group_size_preference: str = "medium",
+    sensitivity: str = "balanced",
+    vector_length: Optional[int] = None
+) -> Dict[str, Any]:
+    """
+    Get clustering parameters with production data optimization awareness.
+    
+    This function first checks if we're dealing with oil & gas production vectors,
+    and if so, uses proven optimal parameters. Otherwise falls back to standard logic.
+    
+    Args:
+        vectors_df: Production vectors DataFrame (for production optimization)
+        data_chars: Data characteristics (fallback if no vectors_df)
+        expected_clusters: User's expected number of clusters
+        group_size_preference: "small", "medium", or "large" groups
+        sensitivity: "loose", "balanced", or "strict" clustering
+        vector_length: Vector length in months
+        
+    Returns:
+        Dictionary with intelligent cluster parameters including production optimization
+    """
+    # Try production optimization first if available
+    if (vectors_df is not None and 
+        PRODUCTION_OPTIMIZATION_AVAILABLE and 
+        len(vectors_df) > 0):
+        try:
+            production_recommendation = get_production_clustering_recommendation(vectors_df)
+            
+            if production_recommendation['is_production_data']:
+                # Use production-optimized parameters
+                prod_config = production_recommendation['recommended_config']
+                
+                return {
+                    'min_cluster_size': getattr(prod_config, 'min_cluster_size', 2),
+                    'min_samples': getattr(prod_config, 'min_samples', 2), 
+                    'use_hdbscan': prod_config.use_hdbscan,
+                    'eps': getattr(prod_config, 'eps', 0.05),
+                    'expected_clusters': production_recommendation['expected_clusters'],
+                    'algorithm_recommendation': production_recommendation['algorithm_choice'],
+                    'confidence_score': production_recommendation['confidence'],
+                    'is_production_optimized': True,
+                    'production_similarity': production_recommendation['similarity_mean'],
+                    'optimization_reason': production_recommendation['optimization_reason'],
+                    'user_message': production_recommendation['user_message']
+                }
+        except Exception as e:
+            # If production optimization fails, fall through to standard logic
+            pass
+    
+    # Fall back to standard clustering intelligence
+    if data_chars is None:
+        # Create minimal data characteristics if not provided
+        data_chars = {
+            'n_wells': len(vectors_df) if vectors_df is not None else 100,
+            'diversity_score': 1.0,
+            'formation_count': 1
+        }
+    
+    return calculate_intelligent_cluster_params(
+        data_chars, expected_clusters, group_size_preference, sensitivity, vector_length
+    )
+
+
 def calculate_intelligent_cluster_params(
     data_chars: Dict[str, Any],
     expected_clusters: Optional[int] = None,
     group_size_preference: str = "medium",  # "small", "medium", "large"
-    sensitivity: str = "balanced"  # "loose", "balanced", "strict"
+    sensitivity: str = "balanced",  # "loose", "balanced", "strict"
+    vector_length: Optional[int] = None  # Vector length in months for adjustment
 ) -> Dict[str, Any]:
     """
     Calculate intelligent clustering parameters based on data characteristics and user preferences.
@@ -96,7 +175,7 @@ def calculate_intelligent_cluster_params(
     # Calculate base cluster size percentage based on dataset size
     if n_wells <= 50:
         base_pct = 0.12  # 12% for small datasets
-        algorithm = 'DBSCAN'  # HDBSCAN may be too sophisticated for small datasets
+        algorithm = 'HDBSCAN'  # Keep HDBSCAN as default for consistency
     elif n_wells <= 200:
         base_pct = 0.08  # 8% for small-medium datasets
         algorithm = 'HDBSCAN'
@@ -110,6 +189,19 @@ def calculate_intelligent_cluster_params(
         base_pct = 0.015  # 1.5% for massive datasets
         algorithm = 'HDBSCAN'
     
+    # Adjust base percentage for short vectors (they need smaller cluster sizes)
+    if vector_length is not None:
+        if vector_length <= 6:
+            base_pct *= 0.4  # Very short vectors: use 40% of normal percentage
+            # Only switch to DBSCAN for very short vectors AND very small datasets
+            if n_wells <= 20:
+                algorithm = 'DBSCAN'  # DBSCAN often better for very short vectors on very small datasets
+        elif vector_length <= 12:
+            base_pct *= 0.6  # Short vectors: use 60% of normal percentage
+        elif vector_length <= 18:
+            base_pct *= 0.8  # Medium vectors: use 80% of normal percentage
+        # Longer vectors (24+ months) use full percentage
+    
     # Adjust for group size preference
     size_multipliers = {
         'small': 0.6,    # Smaller clusters
@@ -118,12 +210,21 @@ def calculate_intelligent_cluster_params(
     }
     size_multiplier = size_multipliers.get(group_size_preference, 1.0)
     
-    # Adjust for sensitivity
-    sensitivity_multipliers = {
-        'loose': 0.7,     # More permissive clustering
-        'balanced': 1.0,  # Default sensitivity
-        'strict': 1.4     # More strict clustering
-    }
+    # Adjust for sensitivity (more aggressive for short vectors)
+    if vector_length is not None and vector_length <= 12:
+        # Short vectors need more aggressive clustering
+        sensitivity_multipliers = {
+            'loose': 0.4,     # Very permissive clustering for short vectors
+            'balanced': 0.7,  # More permissive than normal
+            'strict': 1.0     # Normal sensitivity
+        }
+    else:
+        # Normal sensitivity multipliers for longer vectors
+        sensitivity_multipliers = {
+            'loose': 0.7,     # More permissive clustering
+            'balanced': 1.0,  # Default sensitivity
+            'strict': 1.4     # More strict clustering
+        }
     sensitivity_multiplier = sensitivity_multipliers.get(sensitivity, 1.0)
     
     # Apply diversity factor (higher diversity needs larger clusters for stability)
@@ -161,7 +262,9 @@ def calculate_intelligent_cluster_params(
         'use_hdbscan': algorithm == 'HDBSCAN',
         'expected_clusters': expected_clusters,
         'algorithm_recommendation': algorithm,
-        'confidence_score': _calculate_confidence_score(n_wells, diversity_score)
+        'confidence_score': _calculate_confidence_score(n_wells, diversity_score),
+        'is_production_optimized': False,  # Standard intelligence, not production optimized
+        'eps': 0.5  # Default DBSCAN epsilon for non-production data
     }
 
 
@@ -241,18 +344,23 @@ def convert_to_cluster_config(
     Convert intelligent parameters to ClusterConfig object.
     
     Args:
-        intelligent_params: Output from calculate_intelligent_cluster_params()
+        intelligent_params: Output from get_production_aware_clustering_params() or calculate_intelligent_cluster_params()
         metric: Distance metric to use (cosine optimal for production shapes)
         
     Returns:
         ClusterConfig object ready for pipeline
     """
+    # Use production-optimized metric if available
+    if intelligent_params.get('is_production_optimized', False):
+        # Production optimization provides its own optimal metric choice
+        metric = "euclidean"  # Production optimization uses euclidean for aggressive eps values
+    
     return ClusterConfig(
         use_hdbscan=intelligent_params['use_hdbscan'],
         min_cluster_size=intelligent_params['min_cluster_size'],
         min_samples=intelligent_params.get('min_samples'),
         metric=metric,
-        eps=0.5  # Default DBSCAN fallback eps
+        eps=intelligent_params.get('eps', 0.5)  # Use production-optimized eps if available
     )
 
 

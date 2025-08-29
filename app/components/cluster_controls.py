@@ -18,6 +18,7 @@ from app.config.ui_defaults import DEFAULTS
 from app.utils.clustering_intelligence import (
     calculate_data_characteristics,
     calculate_intelligent_cluster_params,
+    get_production_aware_clustering_params,
     get_user_friendly_suggestions,
     convert_to_cluster_config,
     get_vector_length_suggestions
@@ -139,12 +140,16 @@ def render_vector_controls(filtered_df: Optional[pd.DataFrame] = None,
     
     return vector_config, len(errors) == 0, errors
 
-def render_clustering_controls(filtered_df: Optional[pd.DataFrame] = None) -> Tuple[ClusterConfig, bool, List[str]]:
+def render_clustering_controls(filtered_df: Optional[pd.DataFrame] = None, 
+                              vector_length: Optional[int] = None,
+                              vectors_df: Optional[pd.DataFrame] = None) -> Tuple[ClusterConfig, bool, List[str]]:
     """
-    Render data-aware clustering configuration controls.
+    Render production-aware clustering configuration controls.
 
     Args:
         filtered_df: Filtered dataset from Step 2 for intelligent parameter calculation
+        vector_length: Vector length for length-aware parameter adjustment
+        vectors_df: Production vectors DataFrame for production optimization
 
     Returns:
         (cluster_config, is_valid, error_messages)
@@ -182,11 +187,20 @@ def render_clustering_controls(filtered_df: Optional[pd.DataFrame] = None) -> Tu
         if suggestions['warnings']:
             st.warning("⚠️ **Warnings:** " + " • ".join(suggestions['warnings']))
     
+    
     st.divider()
     
     # Simplified production-focused controls
     st.markdown("**🎯 Clustering Strategy**")
-    st.info("💡 Optimized for production decline curve clustering using HDBSCAN + Cosine similarity")
+    info_text = "💡 Optimized for production decline curve clustering using HDBSCAN + Cosine similarity"
+    if vector_length is not None:
+        if vector_length <= 6:
+            info_text += f" • **{vector_length}-month vectors**: Using more aggressive parameters for short curves"
+        elif vector_length <= 12:
+            info_text += f" • **{vector_length}-month vectors**: Using moderate parameters for early decline"
+        else:
+            info_text += f" • **{vector_length}-month vectors**: Using standard parameters for full curves"
+    st.info(info_text)
     
     col1, col2 = st.columns(2)
     
@@ -240,13 +254,32 @@ def render_clustering_controls(filtered_df: Optional[pd.DataFrame] = None) -> Tu
         # Hidden advanced option toggle
         show_advanced = st.checkbox("Show advanced options", value=False, key="show_clustering_advanced")
     
-    # Calculate intelligent parameters
-    intelligent_params = calculate_intelligent_cluster_params(
-        data_chars,
+    # Calculate intelligent parameters (now production-aware and vector-length aware)
+    intelligent_params = get_production_aware_clustering_params(
+        vectors_df=vectors_df,
+        data_chars=data_chars,
         expected_clusters=expected_clusters,
         group_size_preference=group_size_preference,
-        sensitivity=sensitivity
+        sensitivity=sensitivity,
+        vector_length=vector_length
     )
+    
+    # Show production optimization feedback (after intelligent_params is calculated)
+    if intelligent_params.get('is_production_optimized', False):
+        similarity = intelligent_params.get('production_similarity', 0.0)
+        algorithm = intelligent_params.get('algorithm_recommendation', 'DBSCAN')
+        expected = intelligent_params.get('expected_clusters', 'several')
+        
+        st.success(f"🛢️ **Production Data Detected** ({similarity:.1%} well similarity) - " +
+                  f"Using {algorithm} optimized for oil & gas decline curves. " +
+                  f"Expecting ~{expected} distinct production behavior groups.")
+        
+        if similarity >= 0.85:
+            st.info("💡 **High similarity is normal** for wells in the same formation with similar completion techniques.")
+    else:
+        # Show standard optimization message for non-production data
+        if data_chars['n_wells'] > 0:
+            st.info("⚙️ **Standard Clustering** - Using general-purpose parameters optimized for your dataset size.")
     
     # Advanced options - only show if requested or for debugging
     if show_advanced:
@@ -441,13 +474,15 @@ def render_projection_controls() -> Tuple[ProjectionConfig, bool, List[str]]:
     return projection_config, len(errors) == 0, errors
 
 def render_all_controls(filtered_df: Optional[pd.DataFrame] = None,
-                       filters_cfg: Dict[str, Any] = None) -> Tuple[Dict[str, Any], bool, List[str]]:
+                       filters_cfg: Dict[str, Any] = None,
+                       vectors_df: Optional[pd.DataFrame] = None) -> Tuple[Dict[str, Any], bool, List[str]]:
     """
     Render all analysis controls together.
     
     Args:
         filtered_df: Filtered dataset for intelligent parameter calculation
         filters_cfg: Filter configuration for vector length intelligence
+        vectors_df: Production vectors DataFrame for production optimization
     
     Returns:
         (all_configs, all_valid, all_errors)
@@ -462,8 +497,8 @@ def render_all_controls(filtered_df: Optional[pd.DataFrame] = None,
     
     st.divider()
     
-    # Clustering controls - now data-aware
-    cluster_config, cluster_valid, cluster_errors = render_clustering_controls(filtered_df)
+    # Clustering controls - now production-aware, data-aware and vector-length aware
+    cluster_config, cluster_valid, cluster_errors = render_clustering_controls(filtered_df, vector_config.months, vectors_df)
     
     # Projection controls
     projection_config, projection_valid, projection_errors = render_projection_controls()
