@@ -5,15 +5,17 @@ Interactive web application for oil & gas well data analysis - complete UI workf
 ## Features
 
 ### **Interactive Workflow**
-- **Guided Process**: 5-step workflow from data upload to exportable results
-- **Real-time Validation**: File validation, data quality checks, configuration validation
+- **Guided Process**: 4-step streamlined workflow from data upload to exportable results
+- **Smart Analysis Configuration**: Data-driven recommendations replace complex parameter tuning
+- **Real-time Validation**: File validation, data quality checks, intelligent configuration
 - **Progress Tracking**: Visual progress indicators and status updates throughout analysis
 - **Error Handling**: Comprehensive error messages with actionable guidance
 
 ### **Smart Components**
 - **Upload Panel**: Drag-drop file upload with CSV validation and data preview
 - **Filter Panel**: Dynamic filtering by formation, operator, completion date, production history
-- **ML Controls**: Interactive parameter configuration for clustering and dimensionality reduction with intelligent suggestions
+- **Smart Analysis Config**: Data-driven configuration with immediate insights and simple controls
+- **Production Optimization**: Automatic parameter optimization with transparent user messaging
 - **Visualization Engine**: Interactive Plotly charts with zoom, pan, and selection capabilities
 - **Data Tables**: Paginated tables with sorting, filtering, and export functionality
 
@@ -35,10 +37,9 @@ streamlit run main.py
 
 ### **Example Workflow**
 1. **Upload Data**: Drag CSV files (Well Headers + Monthly Production)
-2. **Preview & Validate**: Review data quality and join statistics
-3. **Apply Filters**: Select formations, date ranges, production criteria
-4. **Configure Analysis**: Set vector parameters, clustering options, projection settings
-5. **Run Analysis**: Execute ML pipeline and explore interactive results
+2. **Apply Filters**: Select formations, date ranges, production criteria with real-time preview
+3. **Smart Analysis**: Get immediate insights ("Found 847 similar oil wells") and simple configuration
+4. **Run Analysis**: Execute optimized ML pipeline and explore interactive results
 
 ### **Sample Screenshots**
 ```
@@ -56,10 +57,12 @@ streamlit run main.py
 │ Completion Years: [2020] ──── [2024]          │
 │ Production Months: [≥ 12 months]               │
 ├─────────────────────────────────────────────────┤
-│ ⚙️ Step 3: Configure Analysis                  │
-│ Vector Length: [24 months]                     │
-│ Production Stream: [Oil ▼]                     │
-│ Clustering: [HDBSCAN] Min Size: [20]           │
+│ 🎯 Step 3: Smart Analysis                      │
+│ 📊 Found: 847 similar oil wells (85% similar)  │
+│ 💡 Recommend: 8 clusters (50-150 wells each)   │
+│ Well Groups: [2] ────●──── [15]               │
+│ Production History: [6] ──●── [36] months      │
+│ 🛢️ Production optimization enabled              │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -71,7 +74,8 @@ streamlit run main.py
 Reusable UI components with Streamlit integration:
 - **`upload_panel.py`**: File upload, validation, and preview
 - **`filter_panel.py`**: Dynamic data filtering interface
-- **`cluster_controls.py`**: ML parameter configuration panels
+- **`smart_analysis_config.py`**: Data-driven configuration with immediate insights (NEW)
+- **`cluster_controls.py`**: Advanced ML parameter configuration panels (legacy)
 - **`plots.py`**: Interactive Plotly visualization components
 - **`tables.py`**: Paginated data tables with export functionality
 
@@ -83,6 +87,8 @@ Business logic and backend integration:
 
 #### **3. Utils Layer** (`app/utils/`)
 Shared utilities and helper functions:
+- **`data_analyzer.py`**: Immediate data analysis for smart recommendations (NEW)
+- **`smart_recommendations.py`**: User-friendly message generation and config conversion (NEW)
 - **`formatting.py`**: Data formatting for display (numbers, dates, units)
 - **`validation.py`**: Input validation and error handling
 - **`guards.py`**: Safety checks and data quality validation
@@ -152,10 +158,27 @@ Dynamic filtering interface with real-time preview.
 **Returns:**
 - `dict`: Filter configuration for pipeline
 
-### Cluster Controls
+### Smart Analysis Configuration (NEW)
+**`render_smart_analysis_config(filtered_df: pd.DataFrame, filters_cfg: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]`**
+
+Data-driven analysis configuration with immediate insights and simple controls.
+
+**Features:**
+- **Immediate Analysis**: Analyzes filtered data to show similarity, production type, confidence
+- **Smart Insights**: "Found 847 similar oil wells with 85% similarity"
+- **Clear Recommendations**: "We recommend 8 clusters with 50-150 wells each"
+- **Simple Controls**: 3-4 intuitive sliders (cluster count, group size, history length)
+- **Real-time Preview**: "Will create ~8 groups with 70-120 wells each"
+- **Production Optimization**: Automatic parameter optimization with transparent messaging
+
+**Returns:**
+- `smart_config`: Complete configuration including user preferences and technical configs
+- `is_valid`: Configuration validity (always true - smart mode handles edge cases)
+
+### Cluster Controls (Legacy)
 **`render_all_controls() -> Tuple[Dict[str, Any], bool, List[str]]`**
 
-ML parameter configuration interface with intelligent suggestions.
+Advanced ML parameter configuration interface for expert users.
 
 **Features:**
 - Data-aware parameter recommendations based on dataset characteristics

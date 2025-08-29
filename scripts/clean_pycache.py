@@ -2,7 +2,7 @@
 """
 Clean Python Cache
 ==================
-Recursively removes all __pycache__ directories and .pyc files from the project.
+Recursively removes all __pycache__, .pytest_cache directories and .pyc files from the project.
 
 Usage:
     python scripts/clean_pycache.py
@@ -14,7 +14,7 @@ import shutil
 from pathlib import Path
 
 def clean_pycache(root_dir: Path, dry_run: bool = False) -> None:
-    """Remove all __pycache__ directories and .pyc files recursively."""
+    """Remove all __pycache__, .pytest_cache directories and .pyc files recursively."""
     
     removed_dirs = 0
     removed_files = 0
@@ -29,6 +29,16 @@ def clean_pycache(root_dir: Path, dry_run: bool = False) -> None:
                 print(f"Removed directory: {pycache_dir}")
             removed_dirs += 1
     
+    # Find all .pytest_cache directories
+    for pytest_cache_dir in root_dir.rglob(".pytest_cache"):
+        if pytest_cache_dir.is_dir():
+            if dry_run:
+                print(f"Would remove directory: {pytest_cache_dir}")
+            else:
+                shutil.rmtree(pytest_cache_dir)
+                print(f"Removed directory: {pytest_cache_dir}")
+            removed_dirs += 1
+    
     # Find all .pyc files
     for pyc_file in root_dir.rglob("*.pyc"):
         if pyc_file.is_file():
@@ -41,7 +51,7 @@ def clean_pycache(root_dir: Path, dry_run: bool = False) -> None:
     
     # Summary
     action = "Would remove" if dry_run else "Removed"
-    print(f"\n{action}: {removed_dirs} __pycache__ directories, {removed_files} .pyc files")
+    print(f"\n{action}: {removed_dirs} cache directories, {removed_files} .pyc files")
 
 def main():
     """CLI entry point"""
