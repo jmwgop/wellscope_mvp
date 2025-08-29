@@ -1,0 +1,27 @@
+ok starting fro mthe top of the page...
+
+
+
+Move all the session shit session recovery and all that start fresh, etc into session managmengement in the left sidebar
+
+
+under step 1 - the previews need to only show the actual columns we have not all columns - we have tons of none
+this goes for both - look at our schemas if needed
+
+
+the data summart and data integration summary are redunant move the match rate into data summarty.
+Make the wells for the actual number like not 3k.
+Production records stays the same.
+I  don't get joined wells its the same number as monthly records - this sohuld better be like wells with productions or something. 
+
+
+
+Under step 2
+
+we are missing Drill Type - isn't this in the schema for headers? We need it here as the first dropdown. The nformation.
+Lateral length, etc only show up and are connsidered in filtering if the well is horizontal. you need to check drill type and the data to see how to do this right.
+the minimum months of production we do needs to be like real based on the data we have like so if we set 2024 as the start year - we can't have 120 months clear?
+Then in the filter summary i don't get the up arrow. and then the % of 1601. It looks like up 9.4% of 1601 - I get it now but we need to show like X% of Y total wells and not arrow
+
+we need to better show all of the dillters at the bellow of this filter summary.
+

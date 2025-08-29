@@ -1,0 +1,59 @@
+{
+  "filter_operators": [],
+  "filter_max_lateral": 20000,
+  "auto_recovery_dismiss": false,
+  "join_stats": {
+    "headers_rows": 392,
+    "headers_unique_api14": 392,
+    "monthly_rows": 29051,
+    "monthly_unique_api14": 212,
+    "joined_rows": 29051,
+    "matched_api14": 212,
+    "unmatched_headers_api14": 180
+  },
+  "group_size_preference": "medium",
+  "filter_year_range": [
+    2018,
+    2021
+  ],
+  "monthly_meta": {
+    "missing_fields": [],
+    "n_rows": 29051,
+    "path": "/var/folders/08/y6fz554s14q2vjlv8ssv7km80000gn/T/tmp1_kiizfn.csv"
+  },
+  "auto_recovery_restore": false,
+  "filters_cfg": {
+    "formations": [
+      "EAGLEFORD"
+    ],
+    "completion_year_range": [
+      2018,
+      2021
+    ],
+    "lateral_ft_range": [
+      5000,
+      20000
+    ],
+    "min_months_produced": 6
+  },
+  "manual_clustering_override": false,
+  "filter_min_lateral": 5000,
+  "expected_clusters": 2,
+  "configs_valid": true,
+  "vector_normalize": "q_over_qmax",
+  "session_recovery_selection": "2025-08-29 00:38 - \ud83d\udcc1 Data (40.3MB)",
+  "vector_stream": "oil",
+  "show_clustering_advanced": false,
+  "filter_formations": [
+    "EAGLEFORD"
+  ],
+  "headers_meta": {
+    "missing_fields": [],
+    "n_rows": 392,
+    "path": "/var/folders/08/y6fz554s14q2vjlv8ssv7km80000gn/T/tmphmg_6hvy.csv"
+  },
+  "filter_min_months": 6,
+  "vector_months": 6,
+  "clustering_sensitivity": "balanced",
+  "show_projection_advanced": false
+}

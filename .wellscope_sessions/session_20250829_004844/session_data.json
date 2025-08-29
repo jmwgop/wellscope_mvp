@@ -1,0 +1,44 @@
+{
+  "filter_year_range": [
+    2018,
+    2024
+  ],
+  "auto_recovery_dismiss": false,
+  "headers_meta": {
+    "missing_fields": [],
+    "n_rows": 3414,
+    "path": "/var/folders/08/y6fz554s14q2vjlv8ssv7km80000gn/T/tmpugtkyvfx.csv"
+  },
+  "filter_operators": [],
+  "monthly_meta": {
+    "missing_fields": [],
+    "n_rows": 288925,
+    "path": "/var/folders/08/y6fz554s14q2vjlv8ssv7km80000gn/T/tmpzlgjnmva.csv"
+  },
+  "filters_cfg": {
+    "completion_year_range": [
+      2018,
+      2024
+    ],
+    "lateral_ft_range": [
+      5000,
+      20000
+    ],
+    "min_months_produced": 6
+  },
+  "join_stats": {
+    "headers_rows": 3414,
+    "headers_unique_api14": 3414,
+    "monthly_rows": 288925,
+    "monthly_unique_api14": 1602,
+    "joined_rows": 288748,
+    "matched_api14": 1601,
+    "unmatched_headers_api14": 1813
+  },
+  "auto_recovery_restore": false,
+  "session_recovery_selection": "2025-08-29 00:39 - \ud83d\udcc1 Data (40.3MB)",
+  "filter_formations": [],
+  "filter_min_months": 6,
+  "filter_min_lateral": 5000,
+  "filter_max_lateral": 20000
+}

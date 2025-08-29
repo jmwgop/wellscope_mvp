@@ -16,13 +16,15 @@ import pandas as pd
 # Import all our components
 from app.components.upload_panel import render_upload_panel
 from app.components.filter_panel import render_filter_panel
-from app.components.cluster_controls import render_all_controls
+from app.components.smart_analysis_config import render_smart_analysis_config
 from app.components.plots import render_interactive_plots
 from app.components.tables import render_well_data_table, render_cluster_summary_table, render_similarity_ranking_table, render_export_options
+from app.components.session_manager import render_auto_recovery_banner, render_session_recovery_panel, render_session_management_sidebar
 
 # Import services
 from app.services.pipeline_driver import run_complete_pipeline, run_configurable_pipeline
 from app.services.caching import cached_run_pipeline, clear_pipeline_cache, get_cache_info
+from app.services.session_persistence import get_auto_save_manager
 from app.state.session import get_session_value, set_session_value
 
 # Import utilities
@@ -97,6 +99,9 @@ def render_sidebar():
     else:
         st.sidebar.info("📁 Upload data to begin analysis")
     
+    # Session management in sidebar
+    render_session_management_sidebar()
+    
     # Show analysis controls if data is available
     if joined_df is not None and len(joined_df) > 0:
         st.sidebar.divider()
@@ -116,17 +121,16 @@ def render_sidebar():
         else:
             filtered_df = joined_df
         
-        # Analysis controls (now data-aware with filter integration)
-        configs, configs_valid, config_errors = render_all_controls(filtered_df, filters_cfg)
-        set_session_value(session, 'analysis_configs', configs)
-        set_session_value(session, 'configs_valid', configs_valid)
+        # Configuration status (now handled in main workflow - Step 3)
+        configs_valid = get_session_value(session, 'configs_valid', False)
         
-        # Show run analysis button
+        # Show analysis status and quick run button
         if configs_valid:
+            st.sidebar.success("✅ Analysis configured")
             if st.sidebar.button("🚀 Run Analysis", type="primary", use_container_width=True):
                 set_session_value(session, 'run_analysis', True)
         else:
-            st.sidebar.error(f"❌ Fix {len(config_errors)} configuration issues first")
+            st.sidebar.info("⚙️ Complete Step 3 to configure analysis")
 
 def render_main_workflow():
     """Render the main workflow steps."""
@@ -135,6 +139,16 @@ def render_main_workflow():
     
     # Get session state
     session = _get_session()
+    
+    # Auto-recovery banner (shows if recent session available)
+    if not get_session_value(session, '_dismiss_auto_recovery', False):
+        recovery_attempted = render_auto_recovery_banner()
+        if recovery_attempted:
+            return  # Page will rerun after recovery
+    
+    # Session recovery panel (manual recovery option)
+    with st.expander("📂 Session Recovery", expanded=False):
+        render_session_recovery_panel()
     
     # Step 1: Upload Panel
     st.header("📁 Step 1: Upload Data")
@@ -155,6 +169,8 @@ def render_main_workflow():
         # Store in session
         set_session_value(session, 'headers_df', headers_df)
         set_session_value(session, 'monthly_df', monthly_df)
+        set_session_value(session, 'headers_meta', upload_results.get('headers_meta', {}))
+        set_session_value(session, 'monthly_meta', upload_results.get('monthly_meta', {}))
         
         # Auto-join data for filtering
         try:
@@ -163,7 +179,17 @@ def render_main_workflow():
             set_session_value(session, 'joined_df', joined_df)
             set_session_value(session, 'join_stats', join_stats)
             
-            st.success(f"✅ Successfully joined {len(joined_df):,} wells")
+            # Auto-save after successful data upload and join
+            try:
+                auto_save_manager = get_auto_save_manager()
+                session_id = auto_save_manager.auto_save(session, "data_upload_join")
+                if session_id:
+                    st.success(f"✅ Successfully joined {len(joined_df):,} wells (auto-saved)")
+                else:
+                    st.success(f"✅ Successfully joined {len(joined_df):,} wells")
+            except Exception as save_error:
+                st.success(f"✅ Successfully joined {len(joined_df):,} wells")
+                st.warning(f"⚠️ Auto-save failed: {save_error}")
             
             # Show join statistics
             with st.expander("📊 Data Integration Summary", expanded=False):
@@ -195,28 +221,46 @@ def render_main_workflow():
     filters_cfg = render_filter_panel(joined_df)
     set_session_value(session, 'filters_cfg', filters_cfg)
     
+    # Auto-save after filtering configuration
+    if filters_cfg:
+        try:
+            auto_save_manager = get_auto_save_manager()
+            auto_save_manager.auto_save(session, "filter_configuration")
+        except Exception:
+            pass  # Silent fail for auto-save
+    
     st.divider()
     
-    # Step 3: Analysis Configuration (handled in sidebar)
+    # Step 3: Smart Analysis Configuration (NEW - data-driven recommendations)
     st.header("⚙️ Step 3: Configure Analysis")
-    configs_valid = get_session_value(session, 'configs_valid', False)
-    analysis_configs = get_session_value(session, 'analysis_configs', {})
     
-    if not configs_valid:
-        st.info("👈 Configure analysis parameters in the sidebar")
+    # Get filtered data
+    filtered_df = None
+    try:
+        from wellscope_mvp.pipeline.filter_inputs import apply_filters, FilterConfig
+        if filters_cfg:
+            filter_config = FilterConfig(**filters_cfg)
+            filter_result = apply_filters(joined_df, filter_config)
+            filtered_df = filter_result['filtered']
+    except Exception:
+        # If filtering fails, use original data
+        filtered_df = joined_df
+    
+    if filtered_df is None or len(filtered_df) == 0:
+        st.error("❌ No data available after filtering. Please adjust your filters in Step 2.")
         return
-    else:
-        st.success("✅ Analysis configuration valid")
-        
-        # Show configuration summary
-        with st.expander("📋 Configuration Summary", expanded=False):
-            if 'vector' in analysis_configs:
-                vector_cfg = analysis_configs['vector']
-                st.write(f"**Vector:** {vector_cfg.months} months of {vector_cfg.stream} production")
-            if 'cluster' in analysis_configs:
-                cluster_cfg = analysis_configs['cluster']
-                algo = "HDBSCAN" if cluster_cfg.use_hdbscan else "DBSCAN"
-                st.write(f"**Clustering:** {algo} with min cluster size {cluster_cfg.min_cluster_size}")
+    
+    # Render smart analysis configuration
+    smart_config, configs_valid = render_smart_analysis_config(filtered_df, filters_cfg)
+    
+    # Store smart configuration in session
+    set_session_value(session, 'smart_config', smart_config)
+    set_session_value(session, 'configs_valid', configs_valid)
+    
+    # Convert smart config to technical configs for pipeline compatibility
+    if configs_valid and smart_config.get('technical_configs'):
+        analysis_configs = smart_config['technical_configs']
+        set_session_value(session, 'analysis_configs', analysis_configs)
     
     st.divider()
     
@@ -260,10 +304,36 @@ def render_main_workflow():
                 progress_bar.progress(100)
                 
                 duration = time.time() - start_time
-                st.success(f"🎉 Analysis completed in {format_duration(duration)}!")
                 
                 # Store results
                 set_session_value(session, 'pipeline_results', pipeline_results)
+                
+                # Store individual results for better session management
+                if 'vectors_df' in pipeline_results:
+                    set_session_value(session, 'vectors_df', pipeline_results['vectors_df'])
+                if 'labels_df' in pipeline_results:
+                    set_session_value(session, 'labels_df', pipeline_results['labels_df'])
+                if 'coords_df' in pipeline_results:
+                    set_session_value(session, 'coords_df', pipeline_results['coords_df'])
+                if 'scores_df' in pipeline_results:
+                    set_session_value(session, 'scores_df', pipeline_results['scores_df'])
+                
+                # Store metadata
+                for meta_key in ['vector_meta', 'cluster_meta', 'projection_meta', 'similarity_meta']:
+                    if meta_key in pipeline_results:
+                        set_session_value(session, meta_key, pipeline_results[meta_key])
+                
+                # Auto-save complete analysis results
+                try:
+                    auto_save_manager = get_auto_save_manager()
+                    session_id = auto_save_manager.auto_save(session, "complete_analysis")
+                    if session_id:
+                        st.success(f"🎉 Analysis completed in {format_duration(duration)}! (auto-saved)")
+                    else:
+                        st.success(f"🎉 Analysis completed in {format_duration(duration)}!")
+                except Exception as save_error:
+                    st.success(f"🎉 Analysis completed in {format_duration(duration)}!")
+                    st.warning(f"⚠️ Auto-save failed: {save_error}")
                 
                 # Clear progress indicators
                 progress_bar.empty()
