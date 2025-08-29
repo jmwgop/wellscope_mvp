@@ -1,0 +1,41 @@
+{
+  "filters_cfg": {
+    "completion_year_range": [
+      2018,
+      2024
+    ],
+    "lateral_ft_range": [
+      5000,
+      20000
+    ],
+    "min_months_produced": 6
+  },
+  "filter_max_lateral": 20000,
+  "filter_year_range": [
+    2018,
+    2024
+  ],
+  "filter_min_months": 6,
+  "monthly_meta": {
+    "missing_fields": [],
+    "n_rows": 288925,
+    "path": "/var/folders/08/y6fz554s14q2vjlv8ssv7km80000gn/T/tmpe3orlx7t.csv"
+  },
+  "join_stats": {
+    "headers_rows": 3414,
+    "headers_unique_api14": 3414,
+    "monthly_rows": 288925,
+    "monthly_unique_api14": 1602,
+    "joined_rows": 288748,
+    "matched_api14": 1601,
+    "unmatched_headers_api14": 1813
+  },
+  "filter_min_lateral": 5000,
+  "filter_operators": [],
+  "filter_formations": [],
+  "headers_meta": {
+    "missing_fields": [],
+    "n_rows": 3414,
+    "path": "/var/folders/08/y6fz554s14q2vjlv8ssv7km80000gn/T/tmpz2g3g6kb.csv"
+  }
+}
